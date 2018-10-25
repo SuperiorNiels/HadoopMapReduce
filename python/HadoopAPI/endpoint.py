@@ -53,7 +53,7 @@ class MapReduce():
         command[4] = self.operation
         command[8] = db + "." + self.outCollection
         print("Executing: " + self.operation + ", saving to collection: " + self.outCollection)
-        print(command)
+        #print(command)
         call(command, stdout=devnull, stderr=devnull)
         thread_lock = False
 
@@ -69,7 +69,6 @@ def countVotes():
 
 @app.route("/countUserVotes")
 def countUserVotes():
-    print("test")
     if not thread_lock:
         thread = MapReduce("user_vote_count", "user_votes_cache")
         thread.run()
