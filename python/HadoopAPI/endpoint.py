@@ -62,6 +62,7 @@ def countVotes():
     if not thread_lock:
         thread = MapReduce("vote_count", "vote_cache")
         thread.run()
+        thread_lock = True
         res = "done"
     else:
         res = "busy"
@@ -72,6 +73,7 @@ def countUserVotes():
     if not thread_lock:
         thread = MapReduce("user_vote_count", "user_votes_cache")
         thread.run()
+        thread_lock = True
         res = "done"
     else:
         res = "busy"
