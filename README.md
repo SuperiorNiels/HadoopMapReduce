@@ -8,10 +8,10 @@
 
 Dependencies:
 - Flask
-- Flask Restful
+- resuests
 
-> \# pip install flask flask-restful
+> \# pip install flask requests
 
 API:
 - Calculate total votes per song: *[ip_addres]:8080/countVotes*
-- ...
+- Calculate total votes per user: *[ip_addres]:8080/countUserVotes*
