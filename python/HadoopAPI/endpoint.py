@@ -55,10 +55,12 @@ class MapReduce():
         print("Executing: " + self.operation + ", saving to collection: " + self.outCollection)
         #print(command)
         call(command, stdout=devnull, stderr=devnull)
+        global thread_lock
         thread_lock = False
 
 @app.route("/countVotes")
 def countVotes():
+    global thread_lock
     if not thread_lock:
         thread = MapReduce("vote_count", "vote_cache")
         thread.run()
@@ -70,6 +72,7 @@ def countVotes():
 
 @app.route("/countUserVotes")
 def countUserVotes():
+    global thread_lock
     if not thread_lock:
         thread = MapReduce("user_vote_count", "user_votes_cache")
         thread.run()
