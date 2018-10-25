@@ -1,15 +1,9 @@
 
-import os
-from flask import Flask, request
-from flask_restful import Resource, Api
+from flask import Flask
 from flask.json import jsonify
 from subprocess import call
-
+import os, threading
 app = Flask(__name__)
-api = Api(app)
-
-os.environ["JAVA_HOME"] = "/home/niels/Programs/jdk1.8.0_181"
-os.environ["HADOOP_HOME"] = "/usr/local/hadoop"
 
 mongo_db_ip = "localhost"
 mongo_db_port = "27017"
@@ -17,30 +11,33 @@ db = "votes-test"
 inCollection = "inventory"
 outCollection = "cache"
 
-command = [os.environ.get("HADOOP_HOME") + "/bin/hadoop",
+command = [os.environ["HADOOP_HOME"]+ "/bin/hadoop",
            "jar",
+           "map_reduce.jar",
+           "MapReduce",
            "OPERATION",
-           "MongoDBConnector",
            mongo_db_ip,
            mongo_db_port,
            db + "." + inCollection,
            db + "." + outCollection]
 
-class Votes(Resource):
-    def get(self):
-        """ Start hadoop Map Reduce
-            :return: json result (calculation done) """
-        command[2] = "operations/countVotes.jar"
+class MapReduce(threading.Thread):
+    def __init__(self, operation):
+        threading.Thread.__init__(self)
+        self.operation = operation
+    def setOperation(self, new_operation):
+        self.operation = new_operation
+    def run(self):
+        command[4] = self.operation
         call(command)
-        res = {
-            "calculation": "ready",
-        }
-        return jsonify(res)
 
-api.add_resource(Votes, '/countVotes')
-#api.add_resource(Votes, '/topUser')
-#api.add_resource(Votes, '/')
-
+@app.route("/countVotes")
+def countVotes():
+    """ Start hadoop Map Reduce
+        :return: json result (calculation done) """
+    thread = MapReduce("vote_count")
+    thread.start()
+    return jsonify({"calculation": "started"})
 
 if __name__ == '__main__':
     app.run(port=8080)
