@@ -44,7 +44,7 @@ public class TimestampCounter extends MongoTool {
                 }
                 long startTime = startD.getTime();
                 long tempTime = timestampD.getTime();
-                int timeslot = (int) Math.floor(tempTime/10);
+                int timeslot = (int) Math.floor((tempTime-startTime)/10);
                 timeslots.put(new IntWritable(timeslot), vote);
                 context.write(song_id, timeslots);
             }
