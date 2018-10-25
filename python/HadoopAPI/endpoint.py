@@ -81,6 +81,6 @@ def countUserVotes():
 if __name__ == '__main__':
     updater = Updater()
     updater.start()
-    app.run(port=8080)
+    app.run(ip='0.0.0.0',port=8080)
     running = False
     updater.join()
