@@ -1,10 +1,10 @@
 # HadoopMapReduce
 
-##Hadoop
+## Hadoop
 
 !!! Set HADOOP_HOME and JAVA_HOME environment variables !!!
 
-##Python Flask API
+## Python Flask API
 
 Dependencies:
 - Flask
