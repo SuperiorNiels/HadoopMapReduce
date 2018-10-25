@@ -1,14 +1,17 @@
 import com.mongodb.hadoop.MongoInputFormat;
 import com.mongodb.hadoop.MongoOutputFormat;
+import com.mongodb.hadoop.io.MongoUpdateWritable;
 import com.mongodb.hadoop.util.MapredMongoConfigUtil;
 import com.mongodb.hadoop.util.MongoConfigUtil;
 import com.mongodb.hadoop.util.MongoTool;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.bson.BSONObject;
+import org.bson.BasicBSONObject;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -33,12 +36,12 @@ public class UserVoteCounter extends MongoTool {
 
     }
 
-    public static class UserVoteReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+    public static class UserVoteReducer extends Reducer<Text, IntWritable, NullWritable, MongoUpdateWritable> {
 
-        private final IntWritable valueInt;
+        private MongoUpdateWritable reduceResult;
 
         public UserVoteReducer() {
-            this.valueInt = new IntWritable();
+            reduceResult = new MongoUpdateWritable();
         }
 
         @Override
@@ -46,8 +49,13 @@ public class UserVoteCounter extends MongoTool {
             int sum = 0;
             for (IntWritable ignored : values)
                 ++sum;
-            valueInt.set(sum);
-            context.write(key, valueInt);
+
+            BasicBSONObject query = new BasicBSONObject("_id", key.toString());
+            BasicBSONObject update = new BasicBSONObject("$set", new BasicBSONObject("value", sum));
+            reduceResult.setQuery(query);
+            reduceResult.setModifiers(update);
+
+            context.write(null, reduceResult);
         }
 
     }
