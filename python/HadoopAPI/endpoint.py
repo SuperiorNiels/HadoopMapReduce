@@ -3,6 +3,7 @@ from flask import Flask
 from flask.json import jsonify
 from subprocess import call
 import os, threading, time
+import requests
 
 app = Flask(__name__)
 running = True
@@ -32,15 +33,16 @@ class Updater(threading.Thread):
         counter = 0
         while running:
             # recalculate every 10 s
-            if counter == 10:
-                print("Check.")
+            if counter == 300:
+                print("------- Calculations started --------")
+                requests.get("http://localhost:8080/countVotes")
+                requests.get("http://localhost:8080/countUserVotes")
                 counter = 0
             time.sleep(1)
             counter = counter + + 1
 
-class MapReduce(threading.Thread):
+class MapReduce():
     def __init__(self, operation, outCollection):
-        threading.Thread.__init__(self)
         self.operation = operation
         self.outCollection = outCollection
     def setOperation(self, new_operation):
@@ -52,15 +54,14 @@ class MapReduce(threading.Thread):
         command[8] = db + "." + self.outCollection
         print("Executing: " + self.operation + ", saving to collection: " + self.outCollection)
         print(command)
-        call(command)#, stdout=devnull, stderr=devnull)
+        call(command, stdout=devnull, stderr=devnull)
         thread_lock = False
 
 @app.route("/countVotes")
 def countVotes():
     if not thread_lock:
         thread = MapReduce("vote_count", "vote_cache")
-        thread.start()
-        thread.join()
+        thread.run()
         res = "done"
     else:
         res = "busy"
@@ -68,10 +69,10 @@ def countVotes():
 
 @app.route("/countUserVotes")
 def countUserVotes():
+    print("test")
     if not thread_lock:
-        thread = MapReduce("count_user_votes", "user_votes_cache")
-        thread.start()
-        thread.join()
+        thread = MapReduce("user_vote_count", "user_votes_cache")
+        thread.run()
         res = "done"
     else:
         res = "busy"
