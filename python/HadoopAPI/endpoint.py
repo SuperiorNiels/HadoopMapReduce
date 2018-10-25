@@ -24,8 +24,6 @@ command = [os.environ["HADOOP_HOME"]+ "/bin/hadoop",
            db + "." + inCollection,
            db + "." + "OUTCOLLECTION"]
 
-thread_lock = False
-
 class Updater(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -41,6 +39,7 @@ class Updater(threading.Thread):
             time.sleep(1)
             counter = counter + + 1
 
+# TODO: make thread? and lock the function (semaphore)?
 class MapReduce():
     def __init__(self, operation, outCollection):
         self.operation = operation
@@ -55,31 +54,19 @@ class MapReduce():
         print("Executing: " + self.operation + ", saving to collection: " + self.outCollection)
         #print(command)
         call(command, stdout=devnull, stderr=devnull)
-        global thread_lock
-        thread_lock = False
 
 @app.route("/countVotes")
 def countVotes():
-    global thread_lock
-    if not thread_lock:
-        thread = MapReduce("vote_count", "vote_cache")
-        thread.run()
-        thread_lock = True
-        res = "done"
-    else:
-        res = "busy"
+    thread = MapReduce("vote_count", "vote_cache")
+    thread.run()
+    res = "done"
     return jsonify({"calculation": res})
 
 @app.route("/countUserVotes")
 def countUserVotes():
-    global thread_lock
-    if not thread_lock:
-        thread = MapReduce("user_vote_count", "user_votes_cache")
-        thread.run()
-        thread_lock = True
-        res = "done"
-    else:
-        res = "busy"
+    thread = MapReduce("user_vote_count", "user_votes_cache")
+    thread.run()
+    res = "done"
     return jsonify({"calculation": res})
 
 if __name__ == '__main__':
