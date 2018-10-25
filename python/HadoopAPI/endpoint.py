@@ -8,10 +8,10 @@ app = Flask(__name__)
 running = True
 devnull = open(os.devnull, 'w')
 
-mongo_db_ip = "localhost"
+mongo_db_ip = "Hadoop:smartcity@143.129.39.127"
 mongo_db_port = "27017"
-db = "votes-test"
-inCollection = "inventory"
+db = "Votes"
+inCollection = "Votes"
 
 command = [os.environ["HADOOP_HOME"]+ "/bin/hadoop",
            "jar",
@@ -22,6 +22,8 @@ command = [os.environ["HADOOP_HOME"]+ "/bin/hadoop",
            mongo_db_port,
            db + "." + inCollection,
            db + "." + "OUTCOLLECTION"]
+
+thread_lock = False
 
 class Updater(threading.Thread):
     def __init__(self):
@@ -49,14 +51,31 @@ class MapReduce(threading.Thread):
         command[4] = self.operation
         command[8] = db + "." + self.outCollection
         print("Executing: " + self.operation + ", saving to collection: " + self.outCollection)
-        call(command, stdout=devnull, stderr=devnull)
+        print(command)
+        call(command)#, stdout=devnull, stderr=devnull)
+        thread_lock = False
 
 @app.route("/countVotes")
 def countVotes():
-    thread = MapReduce("vote_count", "out")
-    thread.start()
-    thread.join()
-    return jsonify({"calculation": "done"})
+    if not thread_lock:
+        thread = MapReduce("vote_count", "vote_cache")
+        thread.start()
+        thread.join()
+        res = "done"
+    else:
+        res = "busy"
+    return jsonify({"calculation": res})
+
+@app.route("/countUserVotes")
+def countUserVotes():
+    if not thread_lock:
+        thread = MapReduce("count_user_votes", "user_votes_cache")
+        thread.start()
+        thread.join()
+        res = "done"
+    else:
+        res = "busy"
+    return jsonify({"calculation": res})
 
 if __name__ == '__main__':
     updater = Updater()
