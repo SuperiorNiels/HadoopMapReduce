@@ -8,7 +8,7 @@
 
 Dependencies:
 - Flask
-- resuests
+- requests
 
 > \# pip install flask requests
 
