@@ -30,16 +30,18 @@ class Updater(threading.Thread):
     def run(self):
         counter = 0
         while running:
-            # recalculate every 10 s
-            if counter == 300:
-                print("------- Calculations started --------")
+            # recalculate every 5 min.
+            if counter == 5:
+                print("------- Automatic update started --------")
                 requests.get("http://localhost:8080/countVotes")
                 requests.get("http://localhost:8080/countUserVotes")
                 counter = 0
             time.sleep(1)
-            counter = counter + + 1
+            counter = counter + 1
 
-# TODO: make thread? and lock the function (semaphore)?
+
+mutex = threading.Lock()
+
 class MapReduce():
     def __init__(self, operation, outCollection):
         self.operation = operation
@@ -49,24 +51,27 @@ class MapReduce():
     def setOutCollection(self, new_collection):
         self.outCollection = new_collection
     def run(self):
-        command[4] = self.operation
-        command[8] = db + "." + self.outCollection
-        print("Executing: " + self.operation + ", saving to collection: " + self.outCollection)
-        #print(command)
-        call(command, stdout=devnull, stderr=devnull)
+        if not mutex.locked():
+            mutex.acquire()
+            command[4] = self.operation
+            command[8] = db + "." + self.outCollection
+            print("Executing: " + self.operation + ", saving to collection: " + self.outCollection)
+            #print(command)
+            call(command, stdout=devnull, stderr=devnull)
+            mutex.release()
+            return True
+        return False
 
 @app.route("/countVotes")
 def countVotes():
     thread = MapReduce("vote_count", "vote_cache")
-    thread.run()
-    res = "done"
+    res = "done" if thread.run() else "busy"
     return jsonify({"calculation": res})
 
 @app.route("/countUserVotes")
 def countUserVotes():
     thread = MapReduce("user_vote_count", "user_votes_cache")
-    thread.run()
-    res = "done"
+    res = "done" if thread.run() else "busy"
     return jsonify({"calculation": res})
 
 if __name__ == '__main__':
