@@ -31,7 +31,7 @@ class Updater(threading.Thread):
         counter = 0
         while running:
             # recalculate every 5 min.
-            if counter == 5:
+            if counter == 300:
                 print("------- Automatic update started --------")
                 requests.get("http://localhost:8080/countVotes")
                 requests.get("http://localhost:8080/countUserVotes")
