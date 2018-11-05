@@ -17,7 +17,7 @@ import java.util.Date;
 
 public class TimestampCounter extends MongoTool {
 
-    public String startSong;
+    public static String startSong;
 
     public static class timestampMapper extends Mapper<Object, BSONObject, LongWritable, MapWritable> {
         /*
@@ -79,7 +79,7 @@ public class TimestampCounter extends MongoTool {
     }
 
     public TimestampCounter(String[] args, String startSong) throws UnknownHostException {
-        this.startSong = startSong;
+        TimestampCounter.startSong = startSong;
         setConf(new Configuration());
 
         if (MongoTool.isMapRedV1()) {

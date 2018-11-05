@@ -76,7 +76,7 @@ def countUserVotes():
 
 @app.route("/timeCount/<timestamp>")
 def countTime(timestamp):
-    thread = MapReduce("user_vote_count", "user_votes_cache")
+    thread = MapReduce("time_count", "time_cache")
     thread.setArguments(str(timestamp))
     res = "done" if thread.run() else "busy"
     return jsonify({"calculation": res})
