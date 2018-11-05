@@ -1,4 +1,3 @@
-
 from flask import Flask
 from flask.json import jsonify
 from subprocess import call
@@ -62,27 +61,16 @@ class MapReduce():
             return True
         return False
 
-countVotesLock = threading.Lock()
-countUserVotesLock = threading.Lock()
-
 @app.route("/countVotes")
 def countVotes():
-    res = "busy"
-    if not countVotesLock.locked():
-        countVotesLock.acquire()
-        thread = MapReduce("vote_count", "vote_cache")
-        res = "done" if thread.run() else "busy"
-        countVotesLock.release()
+    thread = MapReduce("vote_count", "vote_cache")
+    res = "done" if thread.run() else "busy"
     return jsonify({"calculation": res})
 
 @app.route("/countUserVotes")
 def countUserVotes():
-    res = "busy"
-    if not countUserVotesLock.locked():
-        countUserVotesLock.acquire()
-        thread = MapReduce("user_vote_count", "user_votes_cache")
-        res = "done" if thread.run() else "busy"
-        countUserVotesLock.release()
+    thread = MapReduce("user_vote_count", "user_votes_cache")
+    res = "done" if thread.run() else "busy"
     return jsonify({"calculation": res})
 
 if __name__ == '__main__':
