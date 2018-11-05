@@ -80,7 +80,7 @@ def countUserVotes():
 
 @app.route("/timeCount/<song_id>/<timestamp>")
 def countTime(song_id, timestamp):
-    thread = MapReduce("time_count", "time_cache")
+    thread = MapReduce("time_count", "time_vote_cache")
     thread.setArgument1(str(timestamp))
     thread.setArgument2(str(song_id))
     res = "done" if thread.run() else "busy"
