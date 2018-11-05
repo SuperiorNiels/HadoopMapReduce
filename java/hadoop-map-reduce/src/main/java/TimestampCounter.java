@@ -51,7 +51,8 @@ public class TimestampCounter extends MongoTool {
                     }
                     long startTime = startD.getTime();
                     long tempTime = timestampD.getTime();
-                    int timeslot = (int) Math.floor((tempTime-startTime)/10);
+                    int timeslot = (int) Math.floor((tempTime-startTime)/10000);
+                    System.out.println("Timeslot: " + timeslot);
                     context.write(new IntWritable(timeslot), vote);
                 }
             }
@@ -61,24 +62,25 @@ public class TimestampCounter extends MongoTool {
     /*
      * computes the votes per timeslot
      */
-    public static class timestampReducer extends Reducer<LongWritable, IntWritable, LongWritable, MongoUpdateWritable> {
+    public static class timestampReducer extends Reducer<IntWritable, IntWritable, LongWritable, MongoUpdateWritable> {
         private MongoUpdateWritable reduceResult = new MongoUpdateWritable();
 
-        public void reduce(LongWritable key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+        public void reduce(IntWritable key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
             int sum = 0;
             for (IntWritable val : values) {
                 sum += val.get();
             }
 
-            BasicBSONObject query = new BasicBSONObject("_id", key.toString());
-            BasicBSONObject obj = new BasicBSONObject("value", sum);
-            obj.append("songId", songId);
+            LongWritable longW = new LongWritable(songId);
+            BasicBSONObject query = new BasicBSONObject("_id", songId);
+            BasicBSONObject obj = new BasicBSONObject();
+            obj.append("timeslot" + key.toString(), sum);
             BasicBSONObject update = new BasicBSONObject("$set", obj);
 
             reduceResult.setQuery(query);
             reduceResult.setModifiers(update);
 
-            context.write(key, reduceResult);
+            context.write(longW, reduceResult);
         }
     }
 
@@ -100,7 +102,7 @@ public class TimestampCounter extends MongoTool {
 
         MongoConfigUtil.setMapper(getConf(), timestampMapper.class);
         MongoConfigUtil.setReducer(getConf(), timestampReducer.class);
-        MongoConfigUtil.setMapperOutputKey(getConf(), LongWritable.class);
+        MongoConfigUtil.setMapperOutputKey(getConf(), IntWritable.class);
         MongoConfigUtil.setMapperOutputValue(getConf(), IntWritable.class);
         MongoConfigUtil.setOutputKey(getConf(), LongWritable.class);
         MongoConfigUtil.setOutputValue(getConf(), IntWritable.class);
