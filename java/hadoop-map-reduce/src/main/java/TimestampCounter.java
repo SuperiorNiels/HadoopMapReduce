@@ -1,5 +1,6 @@
 import com.mongodb.hadoop.MongoInputFormat;
 import com.mongodb.hadoop.MongoOutputFormat;
+import com.mongodb.hadoop.io.MongoUpdateWritable;
 import com.mongodb.hadoop.util.MapredMongoConfigUtil;
 import com.mongodb.hadoop.util.MongoConfigUtil;
 import com.mongodb.hadoop.util.MongoTool;
@@ -9,6 +10,7 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.yarn.util.constraint.PlacementConstraintParser;
 import org.bson.BSONObject;
+import org.bson.BasicBSONObject;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -18,10 +20,11 @@ import java.util.Date;
 public class TimestampCounter extends MongoTool {
 
     public static String startSong;
+    public static long songId;
 
-    public static class timestampMapper extends Mapper<Object, BSONObject, LongWritable, MapWritable> {
+    public static class timestampMapper extends Mapper<Object, BSONObject, IntWritable, IntWritable> {
         /*
-         * startSong is in ISO 8109 format
+         * startSong is in ISO 8601 format
          * Create a map that keeps track of timesslots and votes
          * so the actual structure will be <songid, <timeslot, vote>>
          * in the reducejob we will count the votes per slot
@@ -30,57 +33,58 @@ public class TimestampCounter extends MongoTool {
         public void map(Object key, BSONObject value, Context context) throws IOException, InterruptedException {
             if(value.containsField("timestamp") && value.containsField("songid") && value.containsField("value")) {
                 String timestamp = value.get("timestamp").toString();
-                LongWritable song_id = new LongWritable(Long.parseLong(value.get("songid").toString()));
-                IntWritable vote = new IntWritable(Integer.parseInt(value.get("value").toString()));
-                MapWritable timeslots = new MapWritable();
-                // assign each vote to the correct timeslot using the timestamp(each timeslot is 10sec)
+                long song_id = Long.parseLong(value.get("songid").toString());
+                // if the song id is equal to the song id that we want, map it
+                if( song_id == songId) {
+                    IntWritable vote = new IntWritable(Integer.parseInt(value.get("value").toString()));
+                    // assign each vote to the correct timeslot using the timestamp(each timeslot is 10sec)
 
-                //first there is a need to convert from ISO 8109 to amount of seconds so we can compute the times
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-                Date startD = null;
-                Date timestampD = null;
-                try {
-                    startD = sdf.parse(startSong);
-                    timestampD = sdf.parse(timestamp);
-                } catch(Exception e) {
-                    System.err.println("Something went wrong parsing the timestamp");
+                    //first there is a need to convert from ISO 8601 to amount of seconds so we can compute the times
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+                    Date startD = null;
+                    Date timestampD = null;
+                    try {
+                        startD = sdf.parse(startSong);
+                        timestampD = sdf.parse(timestamp);
+                    } catch(Exception e) {
+                        System.err.println("Something went wrong parsing the timestamp");
+                    }
+                    long startTime = startD.getTime();
+                    long tempTime = timestampD.getTime();
+                    int timeslot = (int) Math.floor((tempTime-startTime)/10);
+                    context.write(new IntWritable(timeslot), vote);
                 }
-                long startTime = startD.getTime();
-                long tempTime = timestampD.getTime();
-                int timeslot = (int) Math.floor((tempTime-startTime)/10);
-                timeslots.put(new IntWritable(timeslot), vote);
-                context.write(song_id, timeslots);
             }
 
         }
     }
     /*
-     * computes the votes per timeslot for a specific song id
+     * computes the votes per timeslot
      */
-    public static class timestampReducer extends Reducer<LongWritable, MapWritable, LongWritable, MapWritable> {
-        private MapWritable result = new MapWritable();
+    public static class timestampReducer extends Reducer<LongWritable, IntWritable, LongWritable, MongoUpdateWritable> {
+        private MongoUpdateWritable reduceResult = new MongoUpdateWritable();
 
-        public void reduce(LongWritable key, Iterable<MapWritable> values, Context context) throws IOException, InterruptedException {
-            for (MapWritable val : values) {
-                //this check is necessary because the default value for a map is not 0!
-                if(result.containsKey(val.keySet().toArray()[0])) {
-                    // if the a key already exists add the vote from the mapper function to the result
-                    int temp = Integer.parseInt(result.get(result.keySet().toArray()[0]).toString());
-                    int temp2 = Integer.parseInt(result.get(val.keySet().toArray()[0]).toString());
-                    int store = temp + temp2;
-                    result.put((Writable) val.keySet().toArray()[0], new IntWritable(store));
-                } else {
-                    // if the given timeslot is not in the result yet, put the vote from the mapper map into the result
-                    result.put((Writable) val.keySet().toArray()[0], val.get(val.keySet().toArray()[0]));
-                }
+        public void reduce(LongWritable key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+            int sum = 0;
+            for (IntWritable val : values) {
+                sum += val.get();
             }
-            //returns a map with votes in a several timeslots of 10seconds
-            context.write(key, result);
+
+            BasicBSONObject query = new BasicBSONObject("_id", key.toString());
+            BasicBSONObject obj = new BasicBSONObject("value", sum);
+            obj.append("songId", songId);
+            BasicBSONObject update = new BasicBSONObject("$set", obj);
+
+            reduceResult.setQuery(query);
+            reduceResult.setModifiers(update);
+
+            context.write(key, reduceResult);
         }
     }
 
-    public TimestampCounter(String[] args, String startSong) throws UnknownHostException {
+    public TimestampCounter(String[] args, String startSong, long songId) throws UnknownHostException {
         TimestampCounter.startSong = startSong;
+        TimestampCounter.songId = songId;
         setConf(new Configuration());
 
         if (MongoTool.isMapRedV1()) {
@@ -97,9 +101,9 @@ public class TimestampCounter extends MongoTool {
         MongoConfigUtil.setMapper(getConf(), timestampMapper.class);
         MongoConfigUtil.setReducer(getConf(), timestampReducer.class);
         MongoConfigUtil.setMapperOutputKey(getConf(), LongWritable.class);
-        MongoConfigUtil.setMapperOutputValue(getConf(), MapWritable.class);
+        MongoConfigUtil.setMapperOutputValue(getConf(), IntWritable.class);
         MongoConfigUtil.setOutputKey(getConf(), LongWritable.class);
-        MongoConfigUtil.setOutputValue(getConf(), MapWritable.class);
+        MongoConfigUtil.setOutputValue(getConf(), IntWritable.class);
     }
 
 }
