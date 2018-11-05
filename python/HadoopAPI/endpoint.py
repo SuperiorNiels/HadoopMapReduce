@@ -51,7 +51,7 @@ class MapReduce():
     def setOutCollection(self, new_collection):
         self.outCollection = new_collection
     def run(self):
-        if not mutex.locked(False):
+        if not mutex.locked():
             mutex.acquire()
             command[4] = self.operation
             command[8] = db + "." + self.outCollection
@@ -62,16 +62,27 @@ class MapReduce():
             return True
         return False
 
+countVotesLock = threading.Lock()
+countUserVotesLock = threading.Lock()
+
 @app.route("/countVotes")
 def countVotes():
-    thread = MapReduce("vote_count", "vote_cache")
-    res = "done" if thread.run() else "busy"
+    res = "busy"
+    if not countVotesLock.locked():
+        countVotesLock.acquire()
+        thread = MapReduce("vote_count", "vote_cache")
+        res = "done" if thread.run() else "busy"
+        countVotesLock.release()
     return jsonify({"calculation": res})
 
 @app.route("/countUserVotes")
 def countUserVotes():
-    thread = MapReduce("user_vote_count", "user_votes_cache")
-    res = "done" if thread.run() else "busy"
+    res = "busy"
+    if not countUserVotesLock.locked():
+        countUserVotesLock.acquire()
+        thread = MapReduce("user_vote_count", "user_votes_cache")
+        res = "done" if thread.run() else "busy"
+        countUserVotesLock.release()
     return jsonify({"calculation": res})
 
 if __name__ == '__main__':
