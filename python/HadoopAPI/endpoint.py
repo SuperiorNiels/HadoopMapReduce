@@ -51,7 +51,7 @@ class MapReduce():
     def setOutCollection(self, new_collection):
         self.outCollection = new_collection
     def run(self):
-        if not mutex.locked():
+        if not mutex.locked(False):
             mutex.acquire()
             command[4] = self.operation
             command[8] = db + "." + self.outCollection
