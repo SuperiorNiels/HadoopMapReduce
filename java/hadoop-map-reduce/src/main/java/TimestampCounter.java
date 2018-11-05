@@ -26,16 +26,17 @@ public class TimestampCounter extends MongoTool {
          * so the actual structure will be <songid, <timeslot, vote>>
          * in the reducejob we will count the votes per slot
          */
+        @Override
         public void map(Object key, BSONObject value, Context context) throws IOException, InterruptedException {
-            if(value.containsField("timestamp") && value.containsField("songid") && value.containsField("vote")) {
+            if(value.containsField("timestamp") && value.containsField("songid") && value.containsField("value")) {
                 String timestamp = value.get("timestamp").toString();
                 LongWritable song_id = new LongWritable(Long.parseLong(value.get("songid").toString()));
-                IntWritable vote = new IntWritable(Integer.parseInt(value.get("vote").toString()));
+                IntWritable vote = new IntWritable(Integer.parseInt(value.get("value").toString()));
                 MapWritable timeslots = new MapWritable();
                 // assign each vote to the correct timeslot using the timestamp(each timeslot is 10sec)
 
                 //first there is a need to convert from ISO 8109 to amount of seconds so we can compute the times
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
                 Date startD = null;
                 Date timestampD = null;
                 try {
@@ -96,9 +97,9 @@ public class TimestampCounter extends MongoTool {
         MongoConfigUtil.setMapper(getConf(), timestampMapper.class);
         MongoConfigUtil.setReducer(getConf(), timestampReducer.class);
         MongoConfigUtil.setMapperOutputKey(getConf(), LongWritable.class);
-        MongoConfigUtil.setMapperOutputValue(getConf(), IntWritable.class);
+        MongoConfigUtil.setMapperOutputValue(getConf(), MapWritable.class);
         MongoConfigUtil.setOutputKey(getConf(), LongWritable.class);
-        MongoConfigUtil.setOutputValue(getConf(), IntWritable.class);
+        MongoConfigUtil.setOutputValue(getConf(), MapWritable.class);
     }
 
 }
