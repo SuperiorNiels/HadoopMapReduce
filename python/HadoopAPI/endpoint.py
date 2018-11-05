@@ -21,7 +21,8 @@ command = [os.environ["HADOOP_HOME"]+ "/bin/hadoop",
            mongo_db_ip,
            mongo_db_port,
            db + "." + inCollection,
-           db + "." + "OUTCOLLECTION"]
+           db + "." + "OUTCOLLECTION",
+           ""]
 
 class Updater(threading.Thread):
     def __init__(self):
@@ -45,15 +46,15 @@ class MapReduce():
     def __init__(self, operation, outCollection):
         self.operation = operation
         self.outCollection = outCollection
-    def setOperation(self, new_operation):
-        self.operation = new_operation
-    def setOutCollection(self, new_collection):
-        self.outCollection = new_collection
+        self.arguments = ""
+    def setArguments(self, new_args):
+        self.arguments = new_args
     def run(self):
         if not mutex.locked():
             mutex.acquire()
             command[4] = self.operation
             command[8] = db + "." + self.outCollection
+            command[9] = self.arguments
             print("Executing: " + self.operation + ", saving to collection: " + self.outCollection)
             #print(command)
             call(command, stdout=devnull, stderr=devnull)
@@ -70,6 +71,13 @@ def countVotes():
 @app.route("/countUserVotes")
 def countUserVotes():
     thread = MapReduce("user_vote_count", "user_votes_cache")
+    res = "done" if thread.run() else "busy"
+    return jsonify({"calculation": res})
+
+@app.route("/timeCount/<timestamp>")
+def countTime(timestamp):
+    thread = MapReduce("user_vote_count", "user_votes_cache")
+    thread.setArguments(str(timestamp))
     res = "done" if thread.run() else "busy"
     return jsonify({"calculation": res})
 

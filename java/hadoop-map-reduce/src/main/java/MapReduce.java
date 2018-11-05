@@ -6,5 +6,7 @@ public class MapReduce {
             ToolRunner.run(new VoteCounter(args), args);
         else if(args[0].equals("user_vote_count"))
             ToolRunner.run(new UserVoteCounter(args), args);
+        else if(args[0].equals("time_count"))
+            ToolRunner.run(new TimestampCounter(args, args[args.length - 1]), args);
     }
 }

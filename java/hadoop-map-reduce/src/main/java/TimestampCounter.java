@@ -17,6 +17,8 @@ import java.util.Date;
 
 public class TimestampCounter extends MongoTool {
 
+    public String startSong;
+
     public static class timestampMapper extends Mapper<Object, BSONObject, LongWritable, MapWritable> {
         /*
          * startSong is in ISO 8109 format
@@ -24,7 +26,7 @@ public class TimestampCounter extends MongoTool {
          * so the actual structure will be <songid, <timeslot, vote>>
          * in the reducejob we will count the votes per slot
          */
-        public void map(Object key, BSONObject value, Context context, String startSong) throws IOException, InterruptedException {
+        public void map(Object key, BSONObject value, Context context) throws IOException, InterruptedException {
             if(value.containsField("timestamp") && value.containsField("songid") && value.containsField("vote")) {
                 String timestamp = value.get("timestamp").toString();
                 LongWritable song_id = new LongWritable(Long.parseLong(value.get("songid").toString()));
@@ -76,7 +78,8 @@ public class TimestampCounter extends MongoTool {
         }
     }
 
-    public TimestampCounter(String[] args) throws UnknownHostException {
+    public TimestampCounter(String[] args, String startSong) throws UnknownHostException {
+        this.startSong = startSong;
         setConf(new Configuration());
 
         if (MongoTool.isMapRedV1()) {
